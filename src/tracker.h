@@ -16,12 +16,12 @@ typedef struct {
 } TRACKER_PATTERN_ROW;
 
 typedef struct {
-	PATTERN_ROW			*row;
+	TRACKER_PATTERN_ROW		*row;
 	unsigned int			rows;
-} TRACKER_COL;
+} TRACKER_PATTERN_COL;
 
 typedef struct {
-	PATTERN_COL			*col;
+	TRACKER_PATTERN_COL		*col;
 	unsigned int			cols;
 } TRACKER_PATTERN;
 
@@ -60,7 +60,12 @@ typedef struct {
 	unsigned int			*pattern_ref;
 	unsigned int			pattern_refs;
 	TRACKER_STATE			state;
+	unsigned int			repeat_jump;
 } TRACKER_FILE;
+
+
+TRACKER_FILE *trackerInit();
+signed short trackerExpand8Bit(signed char sample);
 
 
 #endif

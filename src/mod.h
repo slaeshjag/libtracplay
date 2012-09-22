@@ -16,7 +16,7 @@ typedef struct {
 	union {
 		unsigned short	word;
 		unsigned char	byte[2];
-	}
+	};
 } MOD_ENDIAN_CONVERT;
 
 

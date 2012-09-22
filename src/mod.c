@@ -18,7 +18,7 @@ int modValidateMemory(void *data, size_t data_len) {
 
 	if (data_len <= MOD_SIGNATURE_POS)
 		return -1;
-	if (memcmp(&data_r[MOD_SIGNATURE_POS], MOD_SIGNATURE) == 0)
+	if (memcmp(&data_r[MOD_SIGNATURE_POS], MOD_SIGNATURE, 4) == 0)
 		return 0;
 	return -1;
 }
@@ -31,7 +31,7 @@ int modValidate(const char *fname) {
 	if ((fp = fopen(fname, "rb")) == NULL)
 		return -1;
 	
-	fseek(fname, MOD_SIGNATURE_POS, fp);
+	fseek(fp, MOD_SIGNATURE_POS, SEEK_SET);
 	if (ftell(fp) != MOD_SIGNATURE_POS) {
 		fclose(fp);
 		return -1;
@@ -40,7 +40,7 @@ int modValidate(const char *fname) {
 	fread(buff, 4, 1, fp);
 	fclose(fp);
 	
-	if (memcmp(buff, MOD_SIGNATURE) != 0)
+	if (memcmp(buff, MOD_SIGNATURE, 4) != 0)
 		return -1;
 	return 0;
 }
@@ -52,13 +52,13 @@ int modSampleAdd(TRACKER_FILE *mod, MOD_SAMPLE *sample, int slot, int i) {
 		return -1;
 	}
 
-	if (trackerSampleAdd(mod->instrument[slot].sample, (modEndianConvert(sample[i].length) - 1) << 1, 1, sample[i].tune) < 0)
+	if (trackerSampleAdd(mod->instrument[slot].sample, (modEndianConvert(sample[i].length) - 1) << 1, 1, sample[i].tune) < 0) {
 		trackerDestroy(mod);
 		return -1;
 	}
 	
-	mod->instrument[slot].sample->repeat_offset = modEndianConvert(sample[i].repeat_offset) << 1;
-	mod->instrument[slot].sample->repeat_end = (modEndianConvert(sample[i].repeat_lenght) << 1) + mod->instrument[slot].sample->repeat_offset;
+	mod->instrument[slot].sample->repeat_start = modEndianConvert(sample[i].repeat_offset) << 1;
+	mod->instrument[slot].sample->repeat_end = (modEndianConvert(sample[i].repeat_lenght) << 1) + mod->instrument[slot].sample->repeat_start;
 
 	if ((modEndianConvert(sample[i].repeat_lenght) << 1) > 0)
 		mod->instrument[slot].sample->repeat_type = TRACKER_SAMPLE_REPEAT_FORWARD;
@@ -73,19 +73,20 @@ int modSampleAdd(TRACKER_FILE *mod, MOD_SAMPLE *sample, int slot, int i) {
 TRACKER_FILE *modInit(void *data, size_t data_len) {
 	int i, j, k, max, t;
 	unsigned int period;
-	char data_r;
+	char *data_r = data;
+	signed char *sound_data;
 	TRACKER_FILE *mod;
 	MOD_PATTERN_HEADER *header = (void *) &data_r[MOD_PATTERN_INFO_POS];
-	MOD_PATTERN_DATA *pattern = (void *) &data_r[MOD_PATTERN_DATA_POS]
+	MOD_PATTERN_DATA *pattern = (void *) &data_r[MOD_PATTERN_DATA_POS];
 	MOD_SAMPLE *sample = (void *) &data_r[MOD_SAMPLE_META_POS_LOW];
 
 	if (modValidateMemory(data, data_len) < 0)
 		return NULL;
-	if ((mod = malloc(sizeof(TRACKER_FILE))) == NULL)
+	if ((mod = trackerInit()) == NULL)
 		return NULL;
 	
 	trackerInit(mod);
-	mod->pattern_refs = header->patterns
+	mod->pattern_refs = header->patterns;
 	
 	for (max = i = 0; i < mod->pattern_refs; i++)
 		if (header->pattern_table[i] > max)
@@ -98,7 +99,7 @@ TRACKER_FILE *modInit(void *data, size_t data_len) {
 	}
 	
 	for (i = 0; i < mod->patterns; i++) {
-		if ((mod->pattern[i] = trackerPatternAdd(MOD_PATTERN_LINES, MOD_PATTERN_COLS)) == NULL) {
+		if (trackerPatternAdd(mod->pattern[i], MOD_PATTERN_LINES, MOD_PATTERN_COLS) < 0) {
 			trackerDestroy(mod);
 			return NULL;
 		}
@@ -119,20 +120,26 @@ TRACKER_FILE *modInit(void *data, size_t data_len) {
 	}
 
 	mod->instruments = MOD_MK_SAMPLES;
-	if ((mod->instrument = trackerSamplePrepare(mod->instruments)) == NULL) {
+	if (trackerInstrumentPrepare(mod) < 0) {
 		trackerDestroy(mod);
 		return NULL;
 	}
 	
-	for (i = 0; i < 31; i++)
+	sound_data = (void *) &pattern[t];		/* t now makes it point right after pattern data. How convinient is that? :D */
+	
+	for (i = 0; i < 31; i++) {
 		modSampleAdd(mod, sample, i, i);
+		for (j = 0; j < mod->instrument[i].sample->samples; j++)
+			mod->instrument[i].sample->sample[j] = trackerExpand8Bit(sound_data[j]);
+	sound_data = &sound_data[j];
+	}
 	
 
 	return mod;
 }
 
 
-TRACPLAY_FILE *modLoad(const char *fname) {
+TRACKER_FILE *modLoad(const char *fname) {
 	FILE *fp;
 	void *data;
 	size_t data_len;
