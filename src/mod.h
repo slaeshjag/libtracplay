@@ -1,13 +1,15 @@
 #ifndef __MOD_H__
 #define	__MOD_H__
 
-#define				MOD_AMIGA_FREQ		7159090		/* Video clock base on Amiga */
-#define				MOD_SIGNATURE		"M.K."
-#define				MOD_SAMPLE_META_POS_LOW	0x14	
-#define				MOD_SIGNATURE_POS	0x438
-#define				MOD_PATTERN_INFO_POS	0x3B6
-#define				MOD_PATTERN_LINES	64
-#define				MOD_MK_SAMPLES		31
+#define				MOD_AMIGA_FREQ			7159090		/* Video clock base on Amiga */
+#define				MOD_SIGNATURE			"M.K."
+#define				MOD_SAMPLE_META_POS_LOW		0x14
+#define				MOD_SIGNATURE_POS		0x438
+#define				MOD_PATTERN_INFO_POS		0x3B6
+#define				MOD_PATTERN_DATA_POS		0x43C
+#define				MOD_PATTERN_LINES		64
+#define				MOD_PATTERN_COLS		4
+#define				MOD_MK_SAMPLES			31
 
 
 typedef struct {
@@ -26,8 +28,7 @@ typedef struct {
 typedef struct {
 	const char		name[22];
 	unsigned short		length;
-	unsigned short		tune 			: 4;	/* Remember that > 7 is actually negative, so the
-									number needs to be two-complemented to be human readable */
+	signed short		tune 			: 4;
 	signed short		dummy 			: 4;
 	unsigned char		volume;
 	unsigned short		repeat_offset;
