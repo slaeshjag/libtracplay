@@ -46,6 +46,71 @@ int modValidate(const char *fname) {
 }
 
 
+void modCompileExtendedEffect(TRACKER_FILE *mod, TRACKER_PATTERN_ROW *row) {
+	/* TODO: Fix */
+	row->effect = TRACKER_EFFECT_NONE;
+
+	return;
+}
+
+
+void modCompileEffect(TRACKER_FILE *mod, TRACKER_PATTERN_ROW *row) {
+
+	if (row->effect == MOD_EFFECT_EXTENDED) {
+		modCompileExtendedEffect(mod, row);
+		return;
+	}
+
+	if (row->effect == MOD_EFFECT_ARPEGGIO) {
+		row->effect = (row->effect_arg1 == 0 && row->effect_arg2 == 0) ? TRACKER_EFFECT_NONE : TRACKER_EFFECT_ARPEGGIO;
+	} else if (row->effect == MOD_EFFECT_SLIDE_UP) {
+		row->effect = TRACKER_EFFECT_SLIDE;
+		row->effect_arg1 = ((row->effect_arg1 << 4) + row->effect_arg2) * -1;
+	} else if (row->effect == MOD_EFFECT_SLIDE_DOWN) {
+		row->effect = TRACKER_EFFECT_SLIDE;
+		row->effect_arg1 = (row->effect_arg1 << 4) + row->effect_arg2;
+	} else if (row->effect == MOD_EFFECT_SLIDE_TO_NOTE) {
+		row->effect = TRACKER_EFFECT_SLIDE_TO_NOTE;
+		row->effect_arg1 = (row->effect_arg1 << 4) + row->effect_arg2;
+	} else if (row->effect == MOD_EFFECT_VIBRATO) {
+		row->effect = TRACKER_EFFECT_VIBRATO;
+	} else if (row->effect == MOD_EFFECT_SLIDE_TO_NOTE_WITH_VOL) {
+		row->effect = TRACKER_EFFECT_SLIDE_NOTE_WITH_VOLUME;
+		row->effect_arg1 = (row->effect_arg1 > 0) ? row->effect_arg1 : row->effect_arg2;
+		row->effect_arg2 <<= 2;		/* Internally, volume is 0..256 */
+	} else if (row->effect == MOD_EFFECT_VIBRATO_WITH_VOL_SLIDE) {
+		row->effect = TRACKER_EFFECT_VIBRATO_WITH_VOLUME_SLIDE;
+		row->effect_arg1 = (row->effect_arg1 > 0) ? row->effect_arg1 : row->effect_arg2;
+		row->effect_arg2 <<= 2;		/* Internally, volume is 0..256 */
+	} else if (row->effect == MOD_EFFECT_TREMOLO) {
+		row->effect = TRACKER_EFFECT_TREMOLO;
+	} else if (row->effect == MOD_EFFECT_SET_SAMPLE_OFFSET) {
+		row->effect = TRACKER_EFFECT_CHANGE_SAMPLE_POS;
+		row->effect_arg1 = ((row->effect_arg1 << 12) + (row->effect_arg2 << 8)) << 1;
+	} else if (row->effect == MOD_EFFECT_VOLUME_SLIDE) {
+		row->effect = TRACKER_EFFECT_VOLUME_SLIDE;
+		row->effect_arg1 = (row->effect_arg1 > 0) ? row->effect_arg1 : row->effect_arg2;
+		row->effect_arg1 <<= 2;		/* Internally, volume is 0..256 */
+	} else if (row->effect == MOD_EFFECT_POSITION_JUMP) {
+		row->effect = TRACKER_EFFECT_POSITION_JUMP;
+		row->effect_arg1 = (row->effect_arg1 << 4) + row->effect_arg2;
+		row->effect_arg2 = 0;
+	} else if (row->effect == MOD_EFFECT_SET_VOLUME) {
+		row->effect = TRACKER_EFFECT_NONE;
+		row->volume = ((row->effect_arg1 << 4) + (row->effect_arg2)) << 2;	/* Volume is 0..256 */
+	} else if (row->effect == MOD_EFFECT_PATTERN_BREAK) {
+		row->effect = TRACKER_EFFECT_PATTERN_BREAK;
+		row->effect_arg1 = (row->effect_arg1 * 10 + row->effect_arg2);
+	} else if (row->effect == MOD_EFFECT_SET_SPEED) {
+		row->effect = TRACKER_EFFECT_SET_SPEED;
+		/* TODO: Fix argument */
+	} else
+		row->effect = TRACKER_EFFECT_NONE;
+	
+	return;
+}
+
+
 int modSampleAdd(TRACKER_FILE *mod, MOD_SAMPLE *sample, int slot, int i) {
 	if (trackerInstrumentAdd(&mod->instrument[slot], 1) < 0) {
 		trackerDestroy(mod);
@@ -67,7 +132,33 @@ int modSampleAdd(TRACKER_FILE *mod, MOD_SAMPLE *sample, int slot, int i) {
 	
 	return 0;
 }
-	
+
+
+void modEffectSlide(void *file) {
+	TRACKER_FILE *mod = file;
+
+	/* TODO: Implement */
+
+	return;
+}
+
+
+void modEffectSlideToNote(void *file) {
+	TRACKER_FILE *mod = file;
+
+	/* TODO: Implement */
+
+	return;
+}
+
+
+void modEffectSlideToNoteVol(void *file) {
+	TRACKER_FILE *mod = file;
+
+	/* TODO: Implement */
+
+	return;
+}
 
 
 TRACKER_FILE *modInit(void *data, size_t data_len) {
@@ -112,9 +203,11 @@ TRACKER_FILE *modInit(void *data, size_t data_len) {
 				t = MOD_PATTERN_LINES * i * MOD_PATTERN_COLS + MOD_PATTERN_COLS * j + k;
 				mod->pattern[i].col[k].row[j].play_rate = MOD_AMIGA_FREQ / period;
 				mod->pattern[i].col[k].row[j].instrument = pattern[t].sample_number_low + (pattern[t].sample_number_high << 4);
+				mod->pattern[i].col[k].row[j].extra_data = period;
 				mod->pattern[i].col[k].row[j].effect = pattern[t].sample_effect_high;
 				mod->pattern[i].col[k].row[j].effect_arg1 = (pattern[t].sample_effect_low & 0xF0) >> 4;
 				mod->pattern[i].col[k].row[j].effect_arg2 = (pattern[t].sample_effect_low & 0xF);
+				mod->pattern[i].col[k].row[j].volume = -1;
 			}
 		}
 	}
@@ -131,8 +224,13 @@ TRACKER_FILE *modInit(void *data, size_t data_len) {
 		modSampleAdd(mod, sample, i, i);
 		for (j = 0; j < mod->instrument[i].sample->samples; j++)
 			mod->instrument[i].sample->sample[j] = trackerExpand8Bit(sound_data[j]);
-	sound_data = &sound_data[j];
+		sound_data = &sound_data[j];
 	}
+
+	/* We need some custom effect funcs that'll differ between formats */
+	mod->effect[TRACKER_EFFECT_SLIDE] = modEffectSlide;
+	mod->effect[TRACKER_EFFECT_SLIDE_TO_NOTE] = modEffectSlideToNote;
+	mod->effect[TRACKER_EFFECT_SLIDE_NOTE_WITH_VOLUME] = modEffectSlideToNoteVol;
 	
 
 	return mod;

@@ -17,6 +17,7 @@ signed short trackerExpand8Bit(signed char sample) {
 
 TRACKER_FILE *trackerInit() {
 	TRACKER_FILE *file;
+	int i;
 	
 	if ((file = malloc(sizeof(TRACKER_FILE))) == NULL)
 		return NULL;
@@ -31,6 +32,9 @@ TRACKER_FILE *trackerInit() {
 	file->state.row = 0;
 	file->state.row_time = 0;
 	file->state.row_time_total = 0;
+
+	for (i = 0; i < TRACKER_EFFECTS; i++)
+		file->effect[i] = NULL;
 
 	return file;
 }
