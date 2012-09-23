@@ -3,6 +3,7 @@
 
 #define				MOD_AMIGA_FREQ			7159090		/* Video clock base on Amiga */
 #define				MOD_SIGNATURE			"M.K."
+#define				MOD_SIGNATURE2			"4CHN"
 #define				MOD_SAMPLE_META_POS_LOW		0x14
 #define				MOD_SIGNATURE_POS		0x438
 #define				MOD_PATTERN_INFO_POS		0x3B6

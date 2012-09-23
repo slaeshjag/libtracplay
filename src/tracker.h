@@ -98,7 +98,14 @@ typedef struct {
 } TRACKER_FILE;
 
 
+int trackerPatternRefs(TRACKER_FILE *file, int pattern_refs);
+int trackerPatternPrepare(TRACKER_FILE *file, int patterns);
+int trackerPatternAdd(TRACKER_PATTERN *pattern, unsigned int rows, unsigned int cols);
+int trackerInstrumentPrepare(TRACKER_FILE *file, unsigned int instruments);
+int trackerInstrumentAdd(TRACKER_INSTRUMENT *instrument, int samples);
+int trackerSampleAdd(TRACKER_SAMPLE *sample, const unsigned int lenght, const unsigned int channels, signed int tune);
 TRACKER_FILE *trackerInit();
+void *trackerDestroy(TRACKER_FILE *file);
 signed short trackerExpand8Bit(signed char sample);
 
 
